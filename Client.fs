@@ -6,9 +6,12 @@ open WebSharper.UI
 open WebSharper.UI.Html
 open WebSharper.UI.Client
 open WebSharper.UI.Templating
+open WebSharper.Sitelets
 
 [<JavaScript>]
 module Client =
+    open WebSharper.UI.Html
+    open WebSharper.Charting
 
     type Pages =
         | Home
@@ -24,8 +27,17 @@ module Client =
         ]
 
     type TransactionType = | Income | Expense
-    type Record = { Type: TransactionType; Category: string; Amount: int }
-    let Transactions = ListModel.Create (fun r -> r.Type, r.Category, r.Amount) []
+    type Record = { Id: int; Type: TransactionType; Category: string; Amount: int }
+    
+    // Egyedi azonosító generálásához
+    let mutable nextId = 1
+    
+    // ListModel módosítása - csak az Id-t használjuk kulcsként
+    let Transactions = ListModel.Create (fun r -> r.Id) []
+    
+    // Globális változó a diagram objektum tárolásához
+    [<JavaScript>]
+    let mutable currentChart : obj option = None
 
     let Main () =
         let newName = Var.Create ""
@@ -38,36 +50,105 @@ module Client =
             let isActive = currentPage.View.Map(fun p -> if p = page then "active" else "")
             li [attr.classDyn isActive] [
                 a [
-                    on.click (fun _ _ -> currentPage.Value <- page)
+                    on.click (fun _ _ -> 
+                        // Elõzõ chart megsemmisítése navigáció elõtt
+                        match currentChart with
+                        | Some chart -> 
+                            JS.Inline("if ($0 && typeof $0.destroy === 'function') { $0.destroy(); }", chart)
+                            currentChart <- None
+                        | None -> ()
+                        
+                        currentPage.Value <- page
+                    )
                     attr.style "cursor: pointer;"
                 ] [text label]
             ]
 
-        let renderChart () =
-            let incomeTotal = Transactions.Value |> Seq.filter (fun r -> r.Type = Income) |> Seq.sumBy (fun r -> r.Amount)
-            let expenseTotal = Transactions.Value |> Seq.filter (fun r -> r.Type = Expense) |> Seq.sumBy (fun r -> r.Amount)
-            let chartData = New [
-                "labels" => [| "Income"; "Expense" |]
-                "datasets" => [| New [
-                    "label" => "Amount (Ft)"
-                    "data" => [| incomeTotal; expenseTotal |]
-                    "backgroundColor" => [| "#36A2EB"; "#FF6384" |]
-                ] |]
-            ]
-            let chartOptions = New [
-                "responsive" => true
-                "scales" => New [
-                    "y" => New ["beginAtZero" => true]
+        let RadarChart () =
+            let categories = 
+                Transactions.Value 
+                |> Seq.map (fun r -> r.Category) 
+                |> Seq.distinct 
+                |> Seq.toArray
+
+            let incomeData =
+                categories
+                |> Array.map (fun category ->
+                    Transactions.Value
+                    |> Seq.filter (fun r -> r.Type = Income && r.Category = category)
+                    |> Seq.sumBy (fun r -> r.Amount)
+                )
+
+            let expenseData =
+                categories
+                |> Array.map (fun category ->
+                    Transactions.Value
+                    |> Seq.filter (fun r -> r.Type = Expense && r.Category = category)
+                    |> Seq.sumBy (fun r -> r.Amount)
+                )
+
+            div [] [
+                h3 [] [text "Income vs Expense by Category (Radar Chart)"]
+                div [attr.id "chartContainer"] [
+                    canvas [
+                        attr.id "radarChartCanvas"
+                        attr.width "450"
+                        attr.height "300"
+                        on.afterRender (fun canvas ->
+                            // Elõzõ chart megsemmisítése, ha létezik
+                            match currentChart with
+                            | Some chart -> 
+                                JS.Inline("if ($0 && typeof $0.destroy === 'function') { $0.destroy(); }", chart)
+                            | None -> ()
+                            
+                            let ctx = (canvas :?> CanvasElement).GetContext "2d"
+                            
+                            // JavaScript objektumok létrehozása megfelelõ típuskényszerítéssel
+                            let chartData = 
+                                JS.Inline("""
+                                {
+                                    labels: $0,
+                                    datasets: [
+                                        {
+                                            label: "Income",
+                                            backgroundColor: "rgba(54, 162, 235, 0.2)",
+                                            borderColor: "rgba(54, 162, 235, 1)",
+                                            pointBackgroundColor: "rgba(54, 162, 235, 1)",
+                                            data: $1
+                                        },
+                                        {
+                                            label: "Expense",
+                                            backgroundColor: "rgba(255, 99, 132, 0.2)",
+                                            borderColor: "rgba(255, 99, 132, 1)",
+                                            pointBackgroundColor: "rgba(255, 99, 132, 1)",
+                                            data: $2
+                                        }
+                                    ]
+                                }
+                                """, categories, incomeData, expenseData)
+                            
+                            let chartOptions = 
+                                JS.Inline("""
+                                {
+                                    responsive: true,
+                                    scales: {
+                                        r: {
+                                            beginAtZero: true
+                                        }
+                                    }
+                                }
+                                """)
+
+                            let chart = 
+                                JS.Inline("new Chart($0, { type: 'radar', data: $1, options: $2 })", 
+                                          ctx, chartData, chartOptions)
+                            
+                            // Eltárolom az új chart objektumot
+                            currentChart <- Some chart
+                        )
+                    ] []
                 ]
             ]
-            let canvas = JS.Document.GetElementById "chartCanvas"
-            let ctx = (canvas :?> CanvasElement).GetContext "2d"
-            let config = New [
-                "type" => "bar"
-                "data" => chartData
-                "options" => chartOptions
-            ]
-            ignore (New["Chart", ctx, config])
 
         div [attr.style "display: flex; height: 100vh;"] [
             div [attr.style "width: 200px; background-color: #f5f8fa; display: flex; flex-direction: column; justify-content: space-between; padding: 20px;"] [
@@ -105,23 +186,25 @@ module Client =
                             h1 [] [text "Transactions"]
                             div [attr.style "margin-bottom: 20px;"] [
                                 select [
-                                    on.change (fun el _ -> newType.Value <- if el?page = "Income" then Income else Expense)
+                                    on.change (fun el _ -> newType.Value <- if el?value = "Income" then Income else Expense)
                                 ] [
                                     option [attr.value "Income"] [text "Income"]
                                     option [attr.value "Expense"] [text "Expense"]
                                 ]
                                 select [
-                                    on.change (fun el _ -> newCategory.Value <- el?page)
+                                    on.change (fun el _ -> newCategory.Value <- el?value)
                                 ] [
                                     option [attr.value "Entertainment"] [text "Entertainment"]
                                     option [attr.value "Food"] [text "Food"]
                                     option [attr.value "Salary"] [text "Salary"]
+                                    option [attr.value "Transport"] [text "Transport"]
+                                    option [attr.value "Bills"] [text "Bills"]
                                 ]
                                 input [
                                     attr.placeholder "Amount (Ft)"
                                     attr.value newAmount.Value
-                                    on.input (fun el _ -> newAmount.Value <- el?page)
-                                    //attr.type' "number"
+                                    on.input (fun el _ -> newAmount.Value <- el?value)
+                                    attr.``type`` "number"
                                     attr.step "1"
                                 ] []
                                 button [
@@ -129,7 +212,15 @@ module Client =
                                         let amountStr = if isNull newAmount.Value then "" else newAmount.Value
                                         let parsedValue = JS.ParseInt(amountStr)
                                         if not (JS.IsNaN(parsedValue)) && not (isNull amountStr) && amountStr.Length > 0 then
-                                            Transactions.Add { Type = newType.Value; Category = newCategory.Value; Amount = parsedValue }
+                                            // Új record létrehozása egyedi azonosítóval
+                                            let newRecord = { 
+                                                Id = nextId
+                                                Type = newType.Value
+                                                Category = newCategory.Value
+                                                Amount = parsedValue 
+                                            }
+                                            Transactions.Add(newRecord)
+                                            nextId <- nextId + 1
                                             newAmount.Value <- ""
                                         else
                                             JS.Alert("Invalid amount! Please enter a valid integer (e.g., 1234).")
@@ -142,6 +233,7 @@ module Client =
                                         th [attr.style "border: 1px solid #ddd; padding: 8px;"] [text "Type"]
                                         th [attr.style "border: 1px solid #ddd; padding: 8px;"] [text "Category"]
                                         th [attr.style "border: 1px solid #ddd; padding: 8px;"] [text "Amount (Ft)"]
+                                        th [attr.style "border: 1px solid #ddd; padding: 8px;"] [text "Actions"]
                                     ]
                                 ]
                                 tbody [] [
@@ -152,16 +244,130 @@ module Client =
                                             ]
                                             td [attr.style "border: 1px solid #ddd; padding: 8px;"] [text record.Category]
                                             td [attr.style "border: 1px solid #ddd; padding: 8px;"] [text (string record.Amount)]
+                                            td [attr.style "border: 1px solid #ddd; padding: 8px;"] [
+                                                button [
+                                                    attr.style "background-color: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px;"
+                                                    on.click (fun _ _ -> 
+                                                        Transactions.RemoveByKey(record.Id)
+                                                    )
+                                                ] [text "Delete"]
+                                            ]
                                         ]
                                     )
                                 ]
+                            ]
+                            // Tranzakciók száma és alapvetõ szûrés
+                            div [attr.style "margin-top: 20px;"] [
+                                Doc.BindView (fun transactions ->
+                                    let count = Seq.length transactions
+                                    let incomeCount = 
+                                        transactions
+                                        |> Seq.filter (fun r -> r.Type = Income)
+                                        |> Seq.length
+                                    let expenseCount = 
+                                        transactions
+                                        |> Seq.filter (fun r -> r.Type = Expense)
+                                        |> Seq.length
+                                    
+                                    div [] [
+                                        p [] [text (sprintf "Total transactions: %d (Income: %d, Expense: %d)" count incomeCount expenseCount)]
+                                    ]
+                                ) Transactions.View
+                            ]
+                            // Statisztika összesítõ - Doc.BindView használata
+                            div [attr.style "margin-top: 20px; padding: 15px; background-color: #f5f8fa; border-radius: 5px;"] [
+                                h3 [] [text "Summary"]
+                                Doc.BindView (fun transactions ->
+                                    let totalIncome = 
+                                        transactions
+                                        |> Seq.filter (fun r -> r.Type = Income)
+                                        |> Seq.sumBy (fun r -> r.Amount)
+                                    
+                                    let totalExpense = 
+                                        transactions
+                                        |> Seq.filter (fun r -> r.Type = Expense)
+                                        |> Seq.sumBy (fun r -> r.Amount)
+                                    
+                                    let balance = totalIncome - totalExpense
+                                    
+                                    div [] [
+                                        p [attr.style "font-weight: bold;"] [
+                                            text "Total Income: "
+                                            span [attr.style "color: green;"] [text (string totalIncome + " Ft")]
+                                        ]
+                                        p [attr.style "font-weight: bold;"] [
+                                            text "Total Expense: "
+                                            span [attr.style "color: red;"] [text (string totalExpense + " Ft")]
+                                        ]
+                                        p [attr.style "font-weight: bold;"] [
+                                            text "Balance: "
+                                            span [attr.style (if balance >= 0 then "color: green;" else "color: red;")] [
+                                                text (string balance + " Ft")
+                                            ]
+                                        ]
+                                    ]
+                                ) Transactions.View
                             ]
                         ]
                     | Analytics ->
                         div [] [
                             h1 [] [text "Analytics"]
-                            canvas [attr.id "chartCanvas"; attr.style "max-height: 400px;"] []
-                            on.afterRender (fun _ -> renderChart())
+                            RadarChart()
+                            
+                            // Kategóriánkénti bontás táblázata
+                            Doc.BindView (fun transactions ->
+                                if Seq.isEmpty transactions then
+                                    div [attr.style "margin-top: 20px; color: #888;"] [
+                                        text "No transactions yet. Add some transactions to see analytics."
+                                    ]
+                                else
+                                    let categories = 
+                                        transactions 
+                                        |> Seq.map (fun r -> r.Category) 
+                                        |> Seq.distinct 
+                                        |> Seq.toList
+                                    
+                                    div [attr.style "margin-top: 30px;"] [
+                                        h3 [] [text "Category Breakdown"]
+                                        table [attr.style "width: 100%; border-collapse: collapse;"] [
+                                            thead [] [
+                                                tr [] [
+                                                    th [attr.style "border: 1px solid #ddd; padding: 8px; text-align: left;"] [text "Category"]
+                                                    th [attr.style "border: 1px solid #ddd; padding: 8px; text-align: right;"] [text "Income (Ft)"]
+                                                    th [attr.style "border: 1px solid #ddd; padding: 8px; text-align: right;"] [text "Expense (Ft)"]
+                                                    th [attr.style "border: 1px solid #ddd; padding: 8px; text-align: right;"] [text "Balance (Ft)"]
+                                                ]
+                                            ]
+                                            tbody [] [
+                                                // forEach helyett Seq.map használata és eredményeinek összefûzése
+                                                categories 
+                                                |> List.map (fun category ->
+                                                    let categoryIncome = 
+                                                        transactions
+                                                        |> Seq.filter (fun r -> r.Type = Income && r.Category = category)
+                                                        |> Seq.sumBy (fun r -> r.Amount)
+                                                    
+                                                    let categoryExpense = 
+                                                        transactions
+                                                        |> Seq.filter (fun r -> r.Type = Expense && r.Category = category)
+                                                        |> Seq.sumBy (fun r -> r.Amount)
+                                                    
+                                                    let categoryBalance = categoryIncome - categoryExpense
+                                                    
+                                                    tr [] [
+                                                        td [attr.style "border: 1px solid #ddd; padding: 8px;"] [text category]
+                                                        td [attr.style "border: 1px solid #ddd; padding: 8px; text-align: right;"] [text (string categoryIncome)]
+                                                        td [attr.style "border: 1px solid #ddd; padding: 8px; text-align: right;"] [text (string categoryExpense)]
+                                                        td [attr.style (sprintf "border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold; color: %s" (if categoryBalance >= 0 then "green" else "red"))] [
+                                                            text (string categoryBalance)
+                                                        ]
+                                                    ]
+                                                )
+                                                |> Doc.Concat
+                                            ]
+                                        ]
+                                    ]
+                            ) Transactions.View
                         ]
                 )
             ]

@@ -1,0 +1,15 @@
+STORAGE: NONE
+NUGET
+  remote: https://api.nuget.org/v3/index.json
+    Chart.js (3.7.1)
+    FSharp.Core (9.0.202) - restriction: >= netstandard2.0
+    HtmlAgilityPack (1.12) - restriction: >= netstandard2.0
+    System.Reflection.Emit.ILGeneration (4.7) - restriction: || (&& (< monoandroid) (< net45) (< netcoreapp2.0) (>= netstandard2.0) (< netstandard2.1) (< xamarintvos) (< xamarinwatchos)) (&& (>= netstandard2.0) (< portable-net45+wp8) (>= win8)) (&& (>= netstandard2.0) (< portable-net45+wp8) (< win8)) (&& (>= netstandard2.0) (>= uap10.1))
+    System.Reflection.Emit.Lightweight (4.7) - restriction: >= netstandard2.0
+      System.Reflection.Emit.ILGeneration (>= 4.7) - restriction: || (&& (< monoandroid) (< monotouch) (< net45) (>= netstandard1.0) (< netstandard2.0) (< win8) (< wp8) (< wpa81) (< xamarintvos) (< xamarinwatchos)) (&& (< monoandroid) (< net45) (< netcoreapp2.0) (>= netstandard2.0) (< netstandard2.1) (< xamarintvos) (< xamarinwatchos)) (&& (< netstandard2.0) (>= wpa81)) (&& (>= portable-net45+win8+wp8+wpa81) (< portable-net45+wp8) (< win8)) (&& (< portable-net45+wp8) (>= win8)) (>= uap10.1)
+    WebSharper (8.0.0.540)
+      FSharp.Core (>= 6.0) - restriction: >= netstandard2.0
+      System.Reflection.Emit.Lightweight (>= 4.7) - restriction: >= netstandard2.0
+    WebSharper.UI (8.0.0.540)
+      HtmlAgilityPack (>= 1.11) - restriction: >= netstandard2.0
+      WebSharper (>= 8.0 < 8.1) - restriction: >= netstandard2.0
