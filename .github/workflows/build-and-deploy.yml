@@ -45,5 +45,5 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@releases/v3
         with:
           GITHUB_TOKEN: ${{ secrets.FEED }}
-          BRANCH: gh-pages
+          BRANCH: master
           FOLDER: dist
