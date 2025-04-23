@@ -18,29 +18,20 @@ module Client =
         | Records
         | Analytics
 
-    type IndexTemplate = Template<"wwwroot/index.html", ClientLoad.FromDocument>
-
-    let People =
-        ListModel.FromSeq [
-            "John"
-            "Paul"
-        ]
-
     type TransactionType = | Income | Expense
     type Record = { Id: int; Type: TransactionType; Category: string; Amount: int }
     
-    // Egyedi azonos�t� gener�l�s�hoz
+    // Unique ID generation
     let mutable nextId = 1
     
-    // ListModel m�dos�t�sa - csak az Id-t haszn�ljuk kulcsk�nt
+    // ListModel for transactions - using Id as key
     let Transactions = ListModel.Create (fun r -> r.Id) []
     
-    // Glob�lis v�ltoz� a diagram objektum t�rol�s�hoz
+    // Global variable to store the chart object
     [<JavaScript>]
     let mutable currentChart : obj option = None
 
     let Main () =
-        let newName = Var.Create ""
         let currentPage = Var.Create Home
         let newType = Var.Create Income
         let newCategory = Var.Create "Entertainment"
@@ -51,7 +42,7 @@ module Client =
             li [attr.classDyn isActive] [
                 a [
                     on.click (fun _ _ -> 
-                        // El�z� chart megsemmis�t�se navig�ci� el�tt
+                        // Destroy previous chart before navigation
                         match currentChart with
                         | Some chart -> 
                             JS.Inline("if ($0 && typeof $0.destroy === 'function') { $0.destroy(); }", chart)
@@ -71,31 +62,57 @@ module Client =
                 |> Seq.distinct 
                 |> Seq.toArray
 
+            // Calculate total income and expense for normalization
+            let totalIncome =
+                Transactions.Value
+                |> Seq.filter (fun r -> r.Type = Income)
+                |> Seq.sumBy (fun r -> r.Amount)
+                |> float
+
+            let totalExpense =
+                Transactions.Value
+                |> Seq.filter (fun r -> r.Type = Expense)
+                |> Seq.sumBy (fun r -> r.Amount)
+                |> float
+
+            // Calculate percentage data
             let incomeData =
                 categories
                 |> Array.map (fun category ->
-                    Transactions.Value
-                    |> Seq.filter (fun r -> r.Type = Income && r.Category = category)
-                    |> Seq.sumBy (fun r -> r.Amount)
+                    let categoryIncome =
+                        Transactions.Value
+                        |> Seq.filter (fun r -> r.Type = Income && r.Category = category)
+                        |> Seq.sumBy (fun r -> r.Amount)
+                        |> float
+                    if totalIncome > 0.0 then
+                        (categoryIncome / totalIncome) * 100.0
+                    else
+                        0.0
                 )
 
             let expenseData =
                 categories
                 |> Array.map (fun category ->
-                    Transactions.Value
-                    |> Seq.filter (fun r -> r.Type = Expense && r.Category = category)
-                    |> Seq.sumBy (fun r -> r.Amount)
+                    let categoryExpense =
+                        Transactions.Value
+                        |> Seq.filter (fun r -> r.Type = Expense && r.Category = category)
+                        |> Seq.sumBy (fun r -> r.Amount)
+                        |> float
+                    if totalExpense > 0.0 then
+                        (categoryExpense / totalExpense) * 100.0
+                    else
+                        0.0
                 )
 
             div [] [
-                h3 [] [text "Income vs Expense by Category (Radar Chart)"]
+                h3 [] [text "Income vs Expense by Category (Percentage Radar Chart)"]
                 div [attr.id "chartContainer"] [
                     canvas [
                         attr.id "radarChartCanvas"
                         attr.width "450"
                         attr.height "300"
                         on.afterRender (fun canvas ->
-                            // El�z� chart megsemmis�t�se, ha l�tezik
+                            // Destroy previous chart if it exists
                             match currentChart with
                             | Some chart -> 
                                 JS.Inline("if ($0 && typeof $0.destroy === 'function') { $0.destroy(); }", chart)
@@ -103,21 +120,21 @@ module Client =
                             
                             let ctx = (canvas :?> CanvasElement).GetContext "2d"
                             
-                            // JavaScript objektumok l�trehoz�sa megfelel� t�pusk�nyszer�t�ssel
+                            // Create JavaScript objects with proper type coercion
                             let chartData = 
                                 JS.Inline("""
                                 {
                                     labels: $0,
                                     datasets: [
                                         {
-                                            label: "Income",
+                                            label: "Income (% of Total Income)",
                                             backgroundColor: "rgba(54, 162, 235, 0.2)",
                                             borderColor: "rgba(54, 162, 235, 1)",
                                             pointBackgroundColor: "rgba(54, 162, 235, 1)",
                                             data: $1
                                         },
                                         {
-                                            label: "Expense",
+                                            label: "Expense (% of Total Expense)",
                                             backgroundColor: "rgba(255, 99, 132, 0.2)",
                                             borderColor: "rgba(255, 99, 132, 1)",
                                             pointBackgroundColor: "rgba(255, 99, 132, 1)",
@@ -133,7 +150,21 @@ module Client =
                                     responsive: true,
                                     scales: {
                                         r: {
-                                            beginAtZero: true
+                                            beginAtZero: true,
+                                            max: 100,
+                                            ticks: {
+                                                stepSize: 20,
+                                                callback: function(value) { return value + '%'; }
+                                            }
+                                        }
+                                    },
+                                    plugins: {
+                                        tooltip: {
+                                            callbacks: {
+                                                label: function(context) {
+                                                    return context.dataset.label + ': ' + context.parsed.r.toFixed(2) + '%';
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -143,7 +174,7 @@ module Client =
                                 JS.Inline("new Chart($0, { type: 'radar', data: $1, options: $2 })", 
                                           ctx, chartData, chartOptions)
                             
-                            // Elt�rolom az �j chart objektumot
+                            // Store the new chart object
                             currentChart <- Some chart
                         )
                     ] []
@@ -169,18 +200,12 @@ module Client =
                 currentPage.View |> Doc.BindView (fun page ->
                     match page with
                     | Home ->
-                        IndexTemplate.Main()
-                            .ListContainer(
-                                People.View.DocSeqCached(fun (name: string) ->
-                                    IndexTemplate.ListItem().Name(name).Doc()
-                                )
-                            )
-                            .Name(newName)
-                            .Add(fun _ ->
-                                People.Add(newName.Value)
-                                newName.Value <- ""
-                            )
-                            .Doc()
+                        div [] [
+                            h1 [] [text "Welcome to Personal Budget Tracker"]
+                            p [] [text """The Personal Budget Tracker is a simple Single-Page Application built with F# and WebSharper to help you manage your finances."""]
+                            p [] [text "This application allows you to track your income and expenses, visualize your financial data, and gain insights into your spending habits."]
+                            p [] [text "Track your income and expenses effortlessly, gain insights through analytics, and make informed financial decisions to achieve better savings."]
+                        ]
                     | Records ->
                         div [] [
                             h1 [] [text "Transactions"]
@@ -212,7 +237,7 @@ module Client =
                                         let amountStr = if isNull newAmount.Value then "" else newAmount.Value
                                         let parsedValue = JS.ParseInt(amountStr)
                                         if not (JS.IsNaN(parsedValue)) && not (isNull amountStr) && amountStr.Length > 0 then
-                                            // �j record l�trehoz�sa egyedi azonos�t�val
+                                            // Create new record with unique ID
                                             let newRecord = { 
                                                 Id = nextId
                                                 Type = newType.Value
@@ -256,7 +281,7 @@ module Client =
                                     )
                                 ]
                             ]
-                            // Tranzakci�k sz�ma �s alapvet� sz�r�s
+                            // Transaction count and basic filtering
                             div [attr.style "margin-top: 20px;"] [
                                 Doc.BindView (fun transactions ->
                                     let count = Seq.length transactions
@@ -274,7 +299,7 @@ module Client =
                                     ]
                                 ) Transactions.View
                             ]
-                            // Statisztika �sszes�t� - Doc.BindView haszn�lata
+                            // Summary statistics
                             div [attr.style "margin-top: 20px; padding: 15px; background-color: #f5f8fa; border-radius: 5px;"] [
                                 h3 [] [text "Summary"]
                                 Doc.BindView (fun transactions ->
@@ -314,7 +339,7 @@ module Client =
                             h1 [] [text "Analytics"]
                             RadarChart()
                             
-                            // Kateg�ri�nk�nti bont�s t�bl�zata
+                            // Category breakdown table
                             Doc.BindView (fun transactions ->
                                 if Seq.isEmpty transactions then
                                     div [attr.style "margin-top: 20px; color: #888;"] [
@@ -339,7 +364,7 @@ module Client =
                                                 ]
                                             ]
                                             tbody [] [
-                                                // forEach helyett Seq.map haszn�lata �s eredm�nyeinek �sszef�z�se
+                                                // Use Seq.map instead of forEach and concatenate results
                                                 categories 
                                                 |> List.map (fun category ->
                                                     let categoryIncome = 
