@@ -29,8 +29,8 @@ jobs:
 
       - run: npm install -g vite
       - run: dotnet build
-      # - run: npx vite build --outDir ../../dist --base ./
-      #   working-directory: bin/html
+      - run: npx vite build --outDir ../../dist --base ./
+        working-directory: bin/html
       # HTML fájlok másolása, ha léteznek
       - name: Copy additional HTML files to dist/
         run: |
@@ -45,5 +45,5 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@releases/v3
         with:
           GITHUB_TOKEN: ${{ secrets.FEED }}
-          BRANCH: master
+          BRANCH: gh-pages
           FOLDER: dist
