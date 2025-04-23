@@ -1,0 +1,79 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>BudgetTracker</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" type="text/css" href="Scripts/BudgetTracker.css" />
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .active {
+            font-weight: bold;
+            background-color: #e8f0fe;
+            border-radius: 10px;
+        }
+
+        li {
+            padding: 10px;
+            margin: 5px 0;
+        }
+
+        a {
+            text-decoration: none;
+            color: #333;
+        }
+
+            a:hover {
+                color: #1da1f2;
+            }
+
+        select, input {
+            margin-right: 10px;
+            padding: 5px;
+        }
+
+        button {
+            padding: 5px 10px;
+            background-color: #1da1f2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+            button:hover {
+                background-color: #0d8ddb;
+            }
+
+
+        /* Don't show the not-yet-loaded templates */
+        [ws-template], [ws-children-template] {
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="Scripts/BudgetTracker.head.js"></script>
+
+</head>
+
+<body>
+
+    <div id="main" ws-children-template="Main">
+        <ul ws-hole="ListContainer">
+            <li ws-template="ListItem">${Name}</li>
+        </ul>
+        <div>
+            <input ws-var="Name" placeholder="Name" />
+            <button ws-onclick="Add">Add</button>
+            <div>You are about to add: ${Name}</div>
+        </div>
+    </div>
+    <script type="module" src="Scripts/BudgetTracker.min.js"></script>
+</body>
+
+</html>
