@@ -1,49 +1,49 @@
-name: Build and Deploy
+name: Deploy to GitHub Pages
+
+# Mikor fusson a workflow
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - master
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Jogosultságok a Pages deploy-hoz
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Konkurens futások kezelése
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
+      # 1. Repository klónozása
       - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-          submodules: true
+        uses: actions/checkout@v4
 
+      # 2. .NET környezet beállítása
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
-      - name: Add GitHub registry NuGet source
-        run: |
-          dotnet nuget add source https://nuget.pkg.github.com/dotnet-websharper/index.json \
-            --name github \
-            --username Csucsuy \
-            --password "${{ secrets.FEED }}" \
-            --store-password-in-clear-text
+      # 3. Projekt fordítása
+      - name: Build
+        run: dotnet build --configuration Release
 
-      - run: npm install -g vite
-      - run: dotnet build
-      - run: npx vite build --outDir ../../dist --base ./
-        working-directory: bin/html
-      # HTML fájlok másolása, ha léteznek
-      - name: Copy additional HTML files to dist/
-        run: |
-          if [ -d "bin/html" ]; then
-             cp -r bin/html/* dist/
-          else
-            echo "HTML files not found!"
-            exit 1
-          fi
-      
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@releases/v3
+      # 4. Statikus fájlok feltöltése artifact-ként
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          GITHUB_TOKEN: ${{ secrets.FEED }}
-          BRANCH: gh-pages
-          FOLDER: dist
+          path: ./wwwroot
+
+      # 5. Deploy a GitHub Pages-re
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
