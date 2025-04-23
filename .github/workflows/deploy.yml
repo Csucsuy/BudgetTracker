@@ -3,9 +3,9 @@ name: Deploy to GitHub Pages
 # Mikor fusson a workflow
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 # Jogosultságok a Pages deploy-hoz
 permissions:
