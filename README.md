@@ -46,11 +46,13 @@ In the Transactions view of the Personal Budget Tracker, users can perform the f
 - View Transactions: See a table listing all transactions with their type, category, amount, and a delete option.
 - Delete Transaction: Remove a specific transaction by clicking the "Delete" button next to it.
 - View Summary: Check the total number of transactions, count of income and expense transactions, and a financial summary showing total income, total expense, and balance (color-coded for positive/negative).
-<img src=""><img src="img/transactions.png" alt="Transactions view" width="50%" height="50%">
+
+<img src="img/transactions.png" alt="Transactions view" width="80%" height="80%">
 
 Analytics View Operations
 In the Analytics view of the Personal Budget Tracker, users can perform the following operations:
 - View Percentage Radar Chart: Observe a radar chart displaying the percentage distribution of income and expenses across categories (e.g., Entertainment, Food), relative to total income and expense.
 - Analyze Category Breakdown: Review a table summarizing each category's total income, expense, and balance (color-coded for positive/negative).
 - Inspect Data: If no transactions exist, a message prompts users to add transactions to enable analytics visualization.
-<img src=""><img src="img/analytics.png" alt="Analytics view" width="50%" height="50%">
+
+<img src="img/analytics.png" alt="Analytics view" width="80%" height="80%">
