@@ -38,9 +38,8 @@ https://csucsuy.github.io/BudgetTracker/
 
 ## Quick guide
 
-# Transaction view
+### Transaction view
 
-**Transactions View Operations**
 In the Transactions view of the Personal Budget Tracker, users can perform the following operations:
 - **Add Transaction**: Input a transaction by selecting its type (Income or Expense), category (e.g., Entertainment, Food), and amount (in Ft), then click "Add" to save it.
 - **View Transactions**: See a table listing all transactions with their type, category, amount, and a delete option.
@@ -49,7 +48,8 @@ In the Transactions view of the Personal Budget Tracker, users can perform the f
 
 <img src="img/transactions.png" alt="Transactions view" width="80%" height="80%">
 
-**Analytics View Operations**
+### Analytics view
+
 In the Analytics view of the Personal Budget Tracker, users can perform the following operations:
 - **View Percentage Radar Chart**: Observe a radar chart displaying the percentage distribution of income and expenses across categories (e.g., Entertainment, Food), relative to total income and expense.
 - **Analyze Category Breakdown**: Review a table summarizing each category's total income, expense, and balance (color-coded for positive/negative).
