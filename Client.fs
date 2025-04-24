@@ -36,6 +36,9 @@ module Client =
         let newType = Var.Create Income
         let newCategory = Var.Create "Entertainment"
         let newAmount = Var.Create ""
+        let homeNewType = Var.Create Income
+        let homeNewCategory = Var.Create "Entertainment"
+        let homeNewAmount = Var.Create ""
 
         let menuItem page label =
             let isActive = currentPage.View.Map(fun p -> if p = page then "active" else "")
@@ -201,10 +204,94 @@ module Client =
                     match page with
                     | Home ->
                         div [] [
-                            h1 [] [text "Welcome to Personal Budget Tracker"]
-                            p [] [text """The Personal Budget Tracker is a simple Single-Page Application built with F# and WebSharper to help you manage your finances."""]
-                            p [] [text "This application allows you to track your income and expenses, visualize your financial data, and gain insights into your spending habits."]
-                            p [] [text "Track your income and expenses effortlessly, gain insights through analytics, and make informed financial decisions to achieve better savings."]
+                            h1 [] [text "Personal Budget Tracker"]
+                            p [attr.style "font-style: italic;"] [text "Take control of your finances with this F#-powered Single-Page Application built using WebSharper."]
+                            p [] [
+                                    text "The Personal Budget Tracker is a simple Single-Page Application built with F# and WebSharper to help you manage your finances."
+                                    br [] []
+                                    text "This application allows you to track your income and expenses, visualize your financial data, and gain insights into your spending habits."
+                                    br [] []
+                                    text "Track your income and expenses effortlessly, gain insights through analytics, and make informed financial decisions to achieve better savings."]
+                            div [attr.style "margin-top: 20px; padding: 15px; background-color: #f5f8fa; border-radius: 5px;"] [
+                                h3 [] [text "Financial Snapshot"]
+                                Doc.BindView (fun transactions ->
+                                    if Seq.isEmpty transactions then
+                                        p [attr.style "color: #888;"] [text "No transactions yet. Add some to see your financial overview."]
+                                    else
+                                        let totalIncome = 
+                                            transactions
+                                            |> Seq.filter (fun r -> r.Type = Income)
+                                            |> Seq.sumBy (fun r -> r.Amount)
+                                        let totalExpense = 
+                                            transactions
+                                            |> Seq.filter (fun r -> r.Type = Expense)
+                                            |> Seq.sumBy (fun r -> r.Amount)
+                                        let balance = totalIncome - totalExpense
+                                        div [] [
+                                            p [attr.style "font-weight: bold;"] [
+                                                text "Total Income: "
+                                                span [attr.style "color: green;"] [text (string totalIncome + " Ft")]
+                                            ]
+                                            p [attr.style "font-weight: bold;"] [
+                                                text "Total Expense: "
+                                                span [attr.style "color: red;"] [text (string totalExpense + " Ft")]
+                                            ]
+                                            p [attr.style "font-weight: bold;"] [
+                                                text "Balance: "
+                                                span [attr.style (if balance >= 0 then "color: green;" else "color: red;")] [
+                                                    text (string balance + " Ft")
+                                                ]
+                                            ]
+                                        ]
+                                ) Transactions.View
+                            ]
+                            div [attr.style "margin-top: 20px;"] [
+                                h3 [] [text "Quick Add Transaction"]
+                                div [attr.style "display: flex; gap: 10px; align-items: center;"] [
+                                    select [
+                                        on.change (fun el _ -> homeNewType.Value <- if el?value = "Income" then Income else Expense)
+                                    ] [
+                                        option [attr.value "Income"] [text "Income"]
+                                        option [attr.value "Expense"] [text "Expense"]
+                                    ]
+                                    select [
+                                        on.change (fun el _ -> homeNewCategory.Value <- el?value)
+                                    ] [
+                                        option [attr.value "Entertainment"] [text "Entertainment"]
+                                        option [attr.value "Food"] [text "Food"]
+                                        option [attr.value "Salary"] [text "Salary"]
+                                        option [attr.value "Transport"] [text "Transport"]
+                                        option [attr.value "Bills"] [text "Bills"]
+                                    ]
+                                    input [
+                                        attr.placeholder "Amount (Ft)"
+                                        attr.value homeNewAmount.Value
+                                        on.input (fun el _ -> homeNewAmount.Value <- el?value)
+                                        attr.``type`` "number"
+                                        attr.step "1"
+                                        attr.style "width: 100px;"
+                                    ] []
+                                    button [
+                                        on.click (fun _ _ ->
+                                            let amountStr = if isNull homeNewAmount.Value then "" else homeNewAmount.Value
+                                            let parsedValue = JS.ParseInt(amountStr)
+                                            if not (JS.IsNaN(parsedValue)) && not (isNull amountStr) && amountStr.Length > 0 then
+                                                let newRecord = { 
+                                                    Id = nextId
+                                                    Type = homeNewType.Value
+                                                    Category = homeNewCategory.Value
+                                                    Amount = parsedValue 
+                                                }
+                                                Transactions.Add(newRecord)
+                                                nextId <- nextId + 1
+                                                homeNewAmount.Value <- ""
+                                            else
+                                                JS.Alert("Invalid amount! Please enter a valid integer (e.g., 1234).")
+                                        )
+                                        attr.style "background-color: #4CAF50; color: white; border: none; padding: 8px 16px; cursor: pointer; border-radius: 3px;"
+                                    ] [text "Add"]
+                                ]
+                            ]
                         ]
                     | Records ->
                         div [] [

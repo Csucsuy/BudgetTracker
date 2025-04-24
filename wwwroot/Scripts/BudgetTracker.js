@@ -13,6 +13,9 @@ function Main(){
   const newType=_c.Create_1(Income);
   const newCategory=_c.Create_1("Entertainment");
   const newAmount=_c.Create_1("");
+  const homeNewType=_c.Create_1(Income);
+  const homeNewCategory=_c.Create_1("Entertainment");
+  const homeNewAmount=_c.Create_1("");
   const menuItem=(page, label) => Doc.Element("li", [Dynamic("class", Map_1((p) => Equals(p, page)?"active":"", currentPage.View))], [Doc.Element("a", [Attr.HandlerImpl("click", () =>() => {
     if(currentChart()==null)null;
     else {
@@ -98,7 +101,25 @@ function Main(){
       }, Transactions().v)];
       return Doc.Element("div", [], _3);
     }
-    else return Doc.Element("div", [], [Doc.Element("h1", [], [Doc.TextNode("Welcome to Personal Budget Tracker")]), Doc.Element("p", [], [Doc.TextNode("The Personal Budget Tracker is a simple Single-Page Application built with F# and WebSharper to help you manage your finances.")]), Doc.Element("p", [], [Doc.TextNode("This application allows you to track your income and expenses, visualize your financial data, and gain insights into your spending habits.")]), Doc.Element("p", [], [Doc.TextNode("Track your income and expenses effortlessly, gain insights through analytics, and make informed financial decisions to achieve better savings.")])]);
+    else return Doc.Element("div", [], [Doc.Element("h1", [], [Doc.TextNode("Personal Budget Tracker")]), Doc.Element("p", [Attr.Create("style", "font-style: italic;")], [Doc.TextNode("Take control of your finances with this F#-powered Single-Page Application built using WebSharper.")]), Doc.Element("p", [], [Doc.TextNode("The Personal Budget Tracker is a simple Single-Page Application built with F# and WebSharper to help you manage your finances."), Doc.Element("br", [], []), Doc.TextNode("This application allows you to track your income and expenses, visualize your financial data, and gain insights into your spending habits."), Doc.Element("br", [], []), Doc.TextNode("Track your income and expenses effortlessly, gain insights through analytics, and make informed financial decisions to achieve better savings.")]), Doc.Element("div", [Attr.Create("style", "margin-top: 20px; padding: 15px; background-color: #f5f8fa; border-radius: 5px;")], [Doc.Element("h3", [], [Doc.TextNode("Financial Snapshot")]), Doc.BindView((transactions) => {
+      if(isEmpty(transactions))return Doc.Element("p", [Attr.Create("style", "color: #888;")], [Doc.TextNode("No transactions yet. Add some to see your financial overview.")]);
+      else {
+        const totalIncome_1=sumBy((r) => r.Amount, filter((r) => r.Type.$===0, transactions));
+        const totalExpense_1=sumBy((r) => r.Amount, filter((r) => r.Type.$===1, transactions));
+        const balance=totalIncome_1-totalExpense_1;
+        return Doc.Element("div", [], [Doc.Element("p", [Attr.Create("style", "font-weight: bold;")], [Doc.TextNode("Total Income: "), Doc.Element("span", [Attr.Create("style", "color: green;")], [Doc.TextNode(String(totalIncome_1)+" Ft")])]), Doc.Element("p", [Attr.Create("style", "font-weight: bold;")], [Doc.TextNode("Total Expense: "), Doc.Element("span", [Attr.Create("style", "color: red;")], [Doc.TextNode(String(totalExpense_1)+" Ft")])]), Doc.Element("p", [Attr.Create("style", "font-weight: bold;")], [Doc.TextNode("Balance: "), Doc.Element("span", [Attr.Create("style", balance>=0?"color: green;":"color: red;")], [Doc.TextNode(String(balance)+" Ft")])])]);
+      }
+    }, Transactions().v)]), Doc.Element("div", [Attr.Create("style", "margin-top: 20px;")], [Doc.Element("h3", [], [Doc.TextNode("Quick Add Transaction")]), Doc.Element("div", [Attr.Create("style", "display: flex; gap: 10px; align-items: center;")], [Doc.Element("select", [Attr.HandlerImpl("change", (el) =>() => homeNewType.Set(el.value=="Income"?Income:Expense))], [Doc.Element("option", [Attr.Create("value", "Income")], [Doc.TextNode("Income")]), Doc.Element("option", [Attr.Create("value", "Expense")], [Doc.TextNode("Expense")])]), Doc.Element("select", [Attr.HandlerImpl("change", (el) =>() => homeNewCategory.Set(el.value))], [Doc.Element("option", [Attr.Create("value", "Entertainment")], [Doc.TextNode("Entertainment")]), Doc.Element("option", [Attr.Create("value", "Food")], [Doc.TextNode("Food")]), Doc.Element("option", [Attr.Create("value", "Salary")], [Doc.TextNode("Salary")]), Doc.Element("option", [Attr.Create("value", "Transport")], [Doc.TextNode("Transport")]), Doc.Element("option", [Attr.Create("value", "Bills")], [Doc.TextNode("Bills")])]), Doc.Element("input", [Attr.Create("placeholder", "Amount (Ft)"), Attr.Create("value", homeNewAmount.Get()), Attr.HandlerImpl("input", (el) =>() => homeNewAmount.Set(el.value)), Attr.Create("type", "number"), Attr.Create("step", "1"), Attr.Create("style", "width: 100px;")], []), Doc.Element("button", [Attr.HandlerImpl("click", () =>() => {
+      const amountStr=homeNewAmount.Get()==null?"":homeNewAmount.Get();
+      const parsedValue=parseInt(amountStr, globalThis.$radix);
+      if(!isNaN(parsedValue)&&!(amountStr==null)&&amountStr.length>0){
+        const newRecord=New(nextId(), homeNewType.Get(), homeNewCategory.Get(), parsedValue);
+        Transactions().Append(newRecord);
+        set_nextId(nextId()+1);
+        return homeNewAmount.Set("");
+      }
+      else return alert("Invalid amount! Please enter a valid integer (e.g., 1234).");
+    }), Attr.Create("style", "background-color: #4CAF50; color: white; border: none; padding: 8px 16px; cursor: pointer; border-radius: 3px;")], [Doc.TextNode("Add")])])])]);
   }, currentPage.View)])]);
 }
 function currentChart(){
